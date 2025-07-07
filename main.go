@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/dgdraganov/A-star-is-born/pathfind"
-	"github.com/dgdraganov/A-star-is-born/ui"
+	"github.com/dgdraganov/A-star-is-born/internal/pathfind"
+	"github.com/dgdraganov/A-star-is-born/internal/ui"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 

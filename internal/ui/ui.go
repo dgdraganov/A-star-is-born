@@ -3,7 +3,7 @@ package ui
 import (
 	"image/color"
 
-	"github.com/dgdraganov/A-star-is-born/pathfind"
+	"github.com/dgdraganov/A-star-is-born/internal/pathfind"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -22,7 +22,6 @@ const (
 	windowSizeY  = 600
 )
 
-// button dimensions
 var (
 	btnX      = float64(layOutSizeX/2 - btnWidth/2)
 	btnY      = float64(layOutSizeY) + 5

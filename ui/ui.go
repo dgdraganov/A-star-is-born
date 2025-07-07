@@ -56,10 +56,11 @@ type Cell struct {
 }
 
 type UI struct {
-	gameStarted bool
 	field       [][]Cell
 	astar       Pathfinder
 	square      *ebiten.Image
+	gameEnded   bool
+	gameStarted bool
 	isDrawing   bool
 }
 
@@ -85,8 +86,19 @@ func (g *UI) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 func (g *UI) Update() error {
 	if !g.gameStarted {
+		g.drawingPhase()
 		return nil
 	}
+
+	if !g.gameEnded {
+		updatedMx, ok := g.astar.Update()
+		if !ok {
+			g.gameEnded = true
+		}
+
+		g.updateGameField(updatedMx)
+	}
+
 	return nil
 }
 
@@ -160,16 +172,24 @@ func (g *UI) drawingPhase() {
 		return
 	}
 
-	g.isDrawing = true
 	x, y := ebiten.CursorPosition()
 	gridX := (x - 1) / gridSize
 	gridY := (y - 1) / gridSize
 	if g.isValidCell(gridX, gridY) {
+		g.isDrawing = true
 		g.field[gridY][gridX].State = pathfind.Obstacle
 	} else if !g.isDrawing && isStartBtnHover(x, y) {
 		g.gameStarted = true
 		cellStateMx := getCellStateMx(g.field)
 		g.astar.Initialize(cellStateMx)
+	}
+}
+
+func (g *UI) updateGameField(updatedMx [][]pathfind.CellState) {
+	for i := 0; i < len(updatedMx); i++ {
+		for j := 0; j < len(updatedMx[i]); j++ {
+			g.field[i][j].State = updatedMx[i][j]
+		}
 	}
 }
 

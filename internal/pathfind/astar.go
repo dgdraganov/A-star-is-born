@@ -9,7 +9,8 @@ import (
 type CellState int
 
 const (
-	Empty CellState = iota
+	None CellState = 1 << iota
+	Empty
 	Visited
 	Explored
 	Obstacle
@@ -17,6 +18,10 @@ const (
 	End
 	Path
 )
+
+func (cs CellState) IsOneOf(val CellState) bool {
+	return val&cs == cs
+}
 
 const (
 	diagonalCost = 14
@@ -57,11 +62,10 @@ type Astar struct {
 
 func NewAstar() *Astar {
 	pq := queue.NewPriorityQueue(func(a, b *Node) bool {
-		return (a.StartDist + a.EndDist) < (b.StartDist + b.EndDist)
+		return a.EndDist < b.EndDist
 	})
 
 	return &Astar{
-		field:      nil,
 		pqExplored: pq,
 	}
 }
@@ -88,65 +92,68 @@ func (a *Astar) Initialize(cells [][]CellState) {
 			}
 		}
 	}
-	a.pqExplored.Enqueue(a.startNode, -(a.startNode.StartDist + a.startNode.EndDist))
+
+	a.startNode.StartDist = 0
+	a.startNode.EndDist = a.getDistance(a.startNode.X, a.startNode.Y, a.endNode)
+	a.pqExplored.Enqueue(a.startNode, (a.startNode.StartDist + a.startNode.EndDist))
 }
 
 func (a *Astar) Update() ([][]CellState, bool) {
-	current, ok := a.pqExplored.Dequeue()
-	if !ok {
-		return nil, false
+	current := new(Node)
+	var ok bool
+	for current.Status.IsOneOf(Visited) {
+		current, ok = a.pqExplored.Dequeue()
+		if !ok {
+			return nil, false
+		}
 	}
 
-	if current.Status == End {
+	if current.Status.IsOneOf(End) {
 		stateMx := getStateMx(a.field)
-		child := current.Parent
-		for child.Status != Start {
-			stateMx[child.X][child.Y] = Path
-			child = child.Parent
-		}
-
+		updatePathToEnd(stateMx, current)
 		return stateMx, false
 	}
 
-	if current.Status == Explored {
+	if current.Status.IsOneOf(Explored) {
 		current.Status = Visited
 	}
 
-	a.getNextExplored(current, straights, 10)
-	a.getNextExplored(current, diagonals, 14)
+	a.exploreNeighbours(current, straights, straightCost)
+	a.exploreNeighbours(current, diagonals, diagonalCost)
 	stateMx := getStateMx(a.field)
 
 	return stateMx, true
 }
 
-func (a *Astar) getNextExplored(node *Node, direction [][2]int, step int) {
+func (a *Astar) exploreNeighbours(node *Node, direction [][2]int, cost int) {
 	for i := 0; i < len(direction); i++ {
 		nX := node.X + direction[i][0]
 		nY := node.Y + direction[i][1]
-		if a.isOutside(nX, nY) || a.field[nX][nY].Status == Obstacle || a.field[nX][nY].Status == Start {
+		if isOutsideField(a.field, nX, nY) || a.field[nX][nY].Status.IsOneOf(Obstacle|Start|Visited) {
 			continue
 		}
 
-		neighbor := a.field[nX][nY]
+		neighbour := a.field[nX][nY]
+		newStartDist := node.StartDist + cost
 
-		if neighbor.StartDist > node.StartDist+step {
-			neighbor.StartDist = node.StartDist + step
-			neighbor.Parent = node
-		}
-
-		if neighbor.EndDist == 0 {
-			neighbor.EndDist = a.getDistance(nX, nY, a.endNode)
-		}
-
-		if neighbor.Status == Visited || neighbor.Status == Explored {
+		if newStartDist >= neighbour.StartDist {
 			continue
 		}
 
-		if neighbor.Status == Empty {
-			neighbor.Status = Explored
+		neighbour.StartDist = newStartDist
+		neighbour.Parent = node
+
+		if neighbour.EndDist == 0 {
+			neighbour.EndDist = a.getDistance(nX, nY, a.endNode)
 		}
 
-		a.pqExplored.Enqueue(neighbor, -(neighbor.StartDist + neighbor.EndDist))
+		fScore := neighbour.StartDist + neighbour.EndDist
+
+		if neighbour.Status.IsOneOf(Empty) {
+			neighbour.Status = Explored
+		}
+
+		a.pqExplored.Enqueue(neighbour, fScore)
 	}
 }
 
@@ -172,9 +179,17 @@ func getStateMx(node [][]*Node) [][]CellState {
 	return res
 }
 
-func (a *Astar) isOutside(i, j int) bool {
-	if i < 0 || i >= len(a.field) || j < 0 || j >= len(a.field[0]) {
+func isOutsideField(field [][]*Node, i, j int) bool {
+	if i < 0 || i >= len(field) || j < 0 || j >= len(field[0]) {
 		return true
 	}
 	return false
+}
+
+func updatePathToEnd(stateMx [][]CellState, current *Node) {
+	child := current.Parent
+	for child.Status != Start {
+		stateMx[child.X][child.Y] = Path
+		child = child.Parent
+	}
 }

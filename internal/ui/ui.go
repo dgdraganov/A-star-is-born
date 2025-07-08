@@ -10,21 +10,21 @@ import (
 )
 
 const (
-	startX       = 28
-	startY       = 1
-	endX         = 1
-	endY         = 28
-	gridSize     = 10
-	layOutSizeX  = 301
-	layOutSizeY  = 301
-	buttonHeight = 30
-	windowSizeX  = 600
-	windowSizeY  = 600
+	startX       int = 28
+	startY       int = 1
+	endX         int = 1
+	endY         int = 28
+	gridSize     int = 10
+	buttonHeight int = 30
+	layoutSizeX  int = 301
+	layoutSizeY  int = 301
+	windowSizeX  int = 600
+	windowSizeY  int = 600
 )
 
 var (
-	btnX      = float64(layOutSizeX/2 - btnWidth/2)
-	btnY      = float64(layOutSizeY) + 5
+	btnX      = float64(layoutSizeX/2 - btnWidth/2)
+	btnY      = float64(layoutSizeY) + 5
 	btnWidth  = gridSize * 5
 	btnHeight = gridSize * 2
 )
@@ -57,7 +57,7 @@ type Cell struct {
 type UI struct {
 	field       [][]Cell
 	astar       Pathfinder
-	square      *ebiten.Image
+	cellSquare  *ebiten.Image
 	gameEnded   bool
 	gameStarted bool
 	isDrawing   bool
@@ -65,22 +65,21 @@ type UI struct {
 
 func NewGame(pf *pathfind.Astar) *UI {
 	ebiten.SetWindowSize(windowSizeX, windowSizeY)
-	ebiten.SetWindowTitle("A star is born")
+	ebiten.SetWindowTitle("A-star is born")
 
 	rect := ebiten.NewImage(gridSize-1, gridSize-1)
+	emptyField := initializeEmptyField()
 
 	ui := &UI{
-		gameStarted: false,
-		field:       initializeField(),
+		field:       emptyField,
 		astar:       pf,
-		square:      rect,
+		cellSquare:  rect,
+		gameStarted: false,
+		gameEnded:   false,
+		isDrawing:   false,
 	}
 
 	return ui
-}
-
-func (g *UI) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return layOutSizeX, layOutSizeY + buttonHeight
 }
 
 func (g *UI) Update() error {
@@ -109,12 +108,14 @@ func (g *UI) Draw(screen *ebiten.Image) {
 	}
 }
 
-// =================================== PRIVATE METHODS =========================================
+func (g *UI) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return layoutSizeX, layoutSizeY + buttonHeight
+}
 
 func (g *UI) drawField(screen *ebiten.Image) {
 	for i := 0; i < len(g.field); i++ {
 		for j := 0; j < len(g.field[i]); j++ {
-			g.drawSquare(screen, j, i, colorMap[g.field[i][j].State])
+			g.fillCell(screen, j, i, colorMap[g.field[i][j].State])
 		}
 	}
 }
@@ -130,20 +131,20 @@ func (g *UI) drawStartButton(screen *ebiten.Image) {
 	ebitenutil.DebugPrintAt(screen, " Start", int(btnX), int(btnY))
 }
 
-func (g *UI) drawSquare(screen *ebiten.Image, x, y int, col color.Color) {
-	g.square.Fill(col)
+func (g *UI) fillCell(screen *ebiten.Image, x, y int, col color.Color) {
+	g.cellSquare.Fill(col)
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(1+x*gridSize), float64(1+y*gridSize))
-	screen.DrawImage(g.square, op)
+	screen.DrawImage(g.cellSquare, op)
 }
 
 func (g *UI) drawGridLines(screen *ebiten.Image) {
 	currentColumn := 1
-	for currentColumn <= layOutSizeY {
+	for currentColumn <= layoutSizeY {
 		vector.StrokeLine(
 			screen,
 			float32(0), float32(currentColumn),
-			float32(layOutSizeX), float32(currentColumn),
+			float32(layoutSizeX), float32(currentColumn),
 			1,
 			color.Gray{Y: 125},
 			false,
@@ -152,11 +153,11 @@ func (g *UI) drawGridLines(screen *ebiten.Image) {
 	}
 
 	currentRow := 1
-	for currentRow <= layOutSizeX {
+	for currentRow <= layoutSizeX {
 		vector.StrokeLine(
 			screen,
 			float32(currentRow), float32(0),
-			float32(currentRow), float32(layOutSizeY),
+			float32(currentRow), float32(layoutSizeY),
 			1,
 			color.Gray{Y: 125},
 			false,
@@ -203,7 +204,7 @@ func (g *UI) isValidCell(gridX, gridY int) bool {
 }
 
 func isOutsideField(x, y int) bool {
-	if x < 0 || x >= layOutSizeX/gridSize || y < 0 || y >= layOutSizeY/gridSize {
+	if x < 0 || x >= layoutSizeX/gridSize || y < 0 || y >= layoutSizeY/gridSize {
 		return true
 	}
 	return false
@@ -227,11 +228,11 @@ func getCellStateMx(cell [][]Cell) [][]pathfind.CellState {
 	return res
 }
 
-func initializeField() [][]Cell {
-	fieldArr := make([][]Cell, layOutSizeY/gridSize)
+func initializeEmptyField() [][]Cell {
+	fieldArr := make([][]Cell, layoutSizeY/gridSize)
 
 	for i := range fieldArr {
-		fieldArr[i] = make([]Cell, layOutSizeX/gridSize)
+		fieldArr[i] = make([]Cell, layoutSizeX/gridSize)
 		for j := range fieldArr[i] {
 			fieldArr[i][j] = Cell{
 				State: pathfind.Empty,
